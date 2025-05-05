@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fatores de Segurança Hídrica</title>
+  <style>
+    body { font-family: sans-serif; padding: 1em; }
+    details { margin: 0.5em 0; transition: opacity 0.3s; }
+    summary {
+      cursor: pointer;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      color: #000;
+    }
+    input[type="checkbox"] { margin-right: 0.5em; }
+    /* Indentação por nível */
+    details.level1 { margin-left: 0; }
+    details.level2 { margin-left: 20px; }
+    details.level3 { margin-left: 40px; }
+    /* Fading geral */
+    details.faded { opacity: 0.3; }
+    /* Área de seleção */
+    #selected-list { margin-top: 2em; padding-top: 1em; border-top: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+
+  <div id="content"></div>
+
+  <div id="selected-list">
+    <h2>Selecionados</h2>
+    <ul id="selected-items"></ul>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    fetch('fatores.md')
+      .then(res => res.text())
+      .then(md => {
+        const container = document.getElementById('content');
+        container.innerHTML = marked.parse(md);
+        buildNestedDetails(container);
+        activateBehavior();
+      });
+
+    function buildNestedDetails(root) {
+      const nodes = Array.from(root.childNodes);
+      const stack = [{ level: 0, container: document.createDocumentFragment() }];
+
+      nodes.forEach(node => {
+        if (node.nodeType === 1 && /^H[1-6]$/.test(node.tagName)) {
+          const lvl = +node.tagName[1];
+          while (stack.length && stack[stack.length - 1].level >= lvl) {
+            stack.pop();
+          }
+          const detail = document.createElement('details');
+          detail.classList.add(`level${lvl}`);
+          const summary = document.createElement('summary');
+          if (lvl === 2) {
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.addEventListener('click', e => e.stopPropagation());
+            summary.appendChild(cb);
+          }
+          summary.insertAdjacentHTML('beforeend', node.innerHTML);
+          detail.appendChild(summary);
+          stack[stack.length - 1].container.appendChild(detail);
+          stack.push({ level: lvl, container: detail });
+        } else {
+          stack[stack.length - 1].container.appendChild(node);
+        }
+      });
+
+      root.innerHTML = '';
+      root.appendChild(stack[0].container);
+    }
+
+    function activateBehavior() {
+      const itemsContainer = document.getElementById('selected-items');
+
+      // Fade on toggle of any <details>
+      document.querySelectorAll('details').forEach(detail => {
+        detail.addEventListener('toggle', () => {
+          applyFade(detail);
+        });
+      });
+
+      // Checkbox selection list
+      document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', updateSelectedList);
+      });
+
+      // Reset fades initially
+      document.querySelectorAll('details').forEach(d => d.classList.remove('faded'));
+
+      function applyFade(activeDetail) {
+        document.querySelectorAll('details').forEach(d => {
+          if (
+            activeDetail.open &&
+            (d === activeDetail || activeDetail.contains(d) || d.contains(activeDetail))
+          ) {
+            d.classList.remove('faded');
+          } else if (activeDetail.open) {
+            d.classList.add('faded');
+          } else {
+            d.classList.remove('faded');
+          }
+        });
+      }
+
+      function updateSelectedList() {
+        itemsContainer.innerHTML = '';
+        document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+          const text = cb.parentElement.innerText.trim();
+          const li = document.createElement('li');
+          li.textContent = text;
+          itemsContainer.appendChild(li);
+        });
+      }
+    }
+  </script>
+
+</body>
+</html>
+
